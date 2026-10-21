@@ -1,0 +1,10 @@
+{
+  "repo": "markupsafe",
+  "commits": 869,
+  "authors": 53,
+  "first_commit": "2010-06-22T17:21:32+00:00",
+  "last_commit": "2026-10-03T00:01:42+00:00",
+  "busiest_weekday": "Friday",
+  "bus_factor": 1,
+  "one_line_take": "markupsafe has 869 commits from 53 authors; bus factor 1, 25 commits in the last year before the latest commit."
+}

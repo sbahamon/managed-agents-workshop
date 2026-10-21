@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Vendor Vetting Lab</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e3e1d9;
+  --sandbox: #2f6fdb; --sandbox-bg: #eaf1fd; --local: #b5531c; --local-bg: #fbeee5;
+  --ok: #1f8a4c; --ok-bg: #e5f5ec; --warn: #b7791f; --warn-bg: #fdf3dc; --bad: #c0392b; --bad-bg: #fbe6e3;
+  --code-bg: #f1efe8; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413; --panel: #1e1e1c; --ink: #ecebe6; --muted: #9a998f; --line: #2f2f2b;
+    --sandbox: #7aa7ff; --sandbox-bg: #1b2740; --local: #f0995e; --local-bg: #3a2416;
+    --ok: #57c98a; --ok-bg: #16301f; --warn: #f2c14e; --warn-bg: #3a2f12; --bad: #ff7b6b; --bad-bg: #3d1a16;
+    --code-bg: #262623; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
+header .sub { color: var(--muted); font-size: 12px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.running { color: var(--sandbox); border-color: var(--sandbox); }
+.pill.running::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--sandbox); animation: pulse 1.2s infinite; }
+.pill.stalled { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.pill.done { color: var(--ok); border-color: var(--ok); }
+.pill.error { color: var(--bad); border-color: var(--bad); }
+.pill.replayed { color: var(--local); border-color: var(--local); }
+@keyframes pulse { 50% { opacity: .3; } }
+.spacer { flex: 1; }
+button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; font-weight: 600; }
+button:disabled { opacity: .4; cursor: default; }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); font-weight: 500; }
+main { display: grid; grid-template-columns: 220px minmax(0, 1fr) 360px; gap: 16px; padding: 16px 20px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 14px; }
+.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+.stubs { list-style: none; margin: 0; padding: 0; }
+.stubs li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.stubs li:last-child { border: 0; }
+.dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: var(--code-bg); color: var(--muted); flex: none; }
+.stubs li.done .dot { background: var(--ok); color: #fff; }
+.stubs .nm { font-family: var(--mono); font-size: 12px; }
+.stubs .lb { color: var(--muted); font-size: 11px; }
+.ids { margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--muted); word-break: break-all; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.zone { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.zone.sandbox { color: var(--sandbox); background: var(--sandbox-bg); }
+.zone.local { color: var(--local); background: var(--local-bg); }
+#timeline { display: flex; flex-direction: column; gap: 8px; min-height: 300px; }
+.empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+.item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); }
+.item.user { border-left: 3px solid var(--muted); }
+.item.agent { border-left: 3px solid var(--ink); }
+.item.tool.sandbox { border-left: 3px solid var(--sandbox); }
+.item.tool.local { border-left: 3px solid var(--local); }
+.item.err { border-left: 3px solid var(--bad); background: var(--bad-bg); }
+.item .head { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.item .head .t { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+.item .body { margin-top: 6px; white-space: pre-wrap; word-break: break-word; }
+.item code, .cmd { font-family: var(--mono); font-size: 12px; }
+.cmd { display: block; background: var(--code-bg); padding: 6px 8px; border-radius: 6px; margin-top: 6px; white-space: pre-wrap; word-break: break-all; }
+details.out summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 6px; }
+details.out pre { background: var(--code-bg); padding: 8px; border-radius: 6px; font: 11px/1.4 var(--mono); max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 6px 0 0; }
+.spin { width: 10px; height: 10px; border: 2px solid var(--line); border-top-color: var(--sandbox); border-radius: 50%; animation: rot .8s linear infinite; display: inline-block; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600; }
+.chip.egress { background: var(--bad-bg); color: var(--bad); }
+.chip.blocked { background: var(--ok-bg); color: var(--ok); }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.wait { background: var(--warn-bg); color: var(--warn); }
+.stall { border: 2px solid var(--warn); background: var(--warn-bg); color: var(--ink); border-radius: 10px; padding: 12px 14px; }
+.stall b { color: var(--warn); }
+.thinking { color: var(--muted); font-size: 12px; display: flex; gap: 8px; align-items: center; padding: 4px 2px; }
+/* verdict */
+#verdict .none { color: var(--muted); padding: 30px 0; text-align: center; }
+.vhead { display: flex; align-items: center; gap: 14px; }
+.badge { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 6px 14px; border-radius: 10px; }
+.badge.safe { background: var(--ok-bg); color: var(--ok); }
+.badge.review { background: var(--warn-bg); color: var(--warn); }
+.badge.block { background: var(--bad-bg); color: var(--bad); }
+.dial { margin-left: auto; text-align: center; }
+.dial .n { font-size: 11px; color: var(--muted); }
+.finding { border-top: 1px solid var(--line); padding: 8px 0; }
+.sev { font-size: 10px; text-transform: uppercase; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+.sev.critical, .sev.high { background: var(--bad-bg); color: var(--bad); }
+.sev.medium { background: var(--warn-bg); color: var(--warn); }
+.sev.low { background: var(--code-bg); color: var(--muted); }
+.finding details { margin-top: 4px; }
+.finding details pre { font: 11px/1.4 var(--mono); background: var(--code-bg); padding: 6px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
+table.sbom { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+table.sbom td { border-top: 1px solid var(--line); padding: 4px 2px; vertical-align: top; }
+table.sbom td:first-child { font-family: var(--mono); }
+.meter { margin-top: 12px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+.footnote { font-size: 11px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Vendor Vetting Lab</h1>
+    <div class="sub">An untrusted repo, inspected in a sandbox you never operate</div>
+  </div>
+  <span class="pill" id="who">…</span>
+  <span class="pill" id="sid" title="session id">no session</span>
+  <span class="pill" id="state">idle</span>
+  <span class="pill replayed" id="replayed" hidden>↻ replayed from event log</span>
+  <span class="spacer"></span>
+  <button id="vet">Vet acme-csvkit</button>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Your stubs</h2>
+    <ul class="stubs" id="stubs"></ul>
+    <div class="ids" id="ids"></div>
+  </section>
+
+  <section class="card">
+    <h2>Session timeline</h2>
+    <div class="legend">
+      <span class="zone sandbox">sandbox · runs in Anthropic's container</span>
+      <span class="zone local">local · runs in your process</span>
+    </div>
+    <div id="timeline"><div class="empty">Click <b>Vet acme-csvkit</b> to start a session.<br>Events from the session's stream will appear here.</div></div>
+  </section>
+
+  <section class="card" id="verdict">
+    <h2>Verdict (from your local <code>record_verdict</code>)</h2>
+    <div class="none">No verdict yet.</div>
+  </section>
+</main>
+
+<script>
+// ── The fold: one pure-ish reducer turns the event log into UI state. ─────────
+// Replay (events.list) and live (events.stream) go through the same function,
+// and every event is deduped by id, so reattaching never double-renders.
+function freshState() {
+  return { seen: new Set(), items: [], tools: new Map(), status: "idle", pending: [],
+           verdict: null, cost: null, activeSec: null, thinking: false, t0: null, replayed: false };
+}
+
+const EGRESS_HIT = /example\.com/i;
+const EGRESS_BLOCKED = /(Could not resolve host|Name or service not known|Temporary failure in name resolution|Network is unreachable|Connection refused)/i;
+
+function textOf(content) {
+  return (content || []).filter(b => b.type === "text").map(b => b.text).join("");
+}
+
+function apply(s, ev) {
+  if (ev.id && s.seen.has(ev.id)) return s;
+  if (ev.id) s.seen.add(ev.id);
+  const at = ev.processed_at ? new Date(ev.processed_at).getTime() : Date.now();
+  if (s.t0 === null && ev.processed_at) s.t0 = at;
+  const t = s.t0 === null ? "" : `${((at - s.t0) / 1000).toFixed(0)}s`;
+
+  switch (ev.type) {
+    case "user.message":
+      s.items.push({ kind: "user", text: textOf(ev.content), t }); break;
+    case "agent.message":
+      s.items.push({ kind: "agent", text: textOf(ev.content), t }); break;
+    case "agent.tool_use": {
+      const it = { kind: "tool", zone: "sandbox", name: ev.name, input: ev.input, t, state: "running" };
+      s.tools.set(ev.id, it); s.items.push(it); break;
+    }
+    case "agent.tool_result": {
+      const it = s.tools.get(ev.tool_use_id);
+      if (it) {
+        it.state = ev.is_error ? "error" : "done";
+        it.output = textOf(ev.content);
+        const probe = JSON.stringify(it.input || {}) + "\n" + it.output;
+        if (EGRESS_HIT.test(probe)) it.egress = EGRESS_BLOCKED.test(it.output) ? "blocked" : "seen";
+      }
+      break;
+    }
+    case "agent.custom_tool_use": {
+      const it = { kind: "tool", zone: "local", name: ev.name, input: ev.input, t, state: "waiting" };
+      s.tools.set(ev.id, it); s.items.push(it);
+      if (ev.name === "record_verdict") s.verdict = { ...ev.input, recorded: false };
+      break;
+    }
+    case "user.custom_tool_result": {
+      const it = s.tools.get(ev.custom_tool_use_id);
+      if (it) { it.state = "done"; it.output = textOf(ev.content); }
+      if (it && it.name === "record_verdict" && s.verdict) s.verdict.recorded = true;
+      s.pending = s.pending.filter(id => id !== ev.custom_tool_use_id);
+      break;
+    }
+    case "span.model_request_start": s.thinking = true; break;
+    case "span.model_request_end": s.thinking = false; break;
+    case "session.status_running": s.status = "running"; s.pending = []; break;
+    case "session.status_idle": {
+      s.thinking = false;
+      const r = ev.stop_reason || {};
+      if (r.type === "requires_action") { s.status = "stalled"; s.pending = r.event_ids || []; }
+      else { s.status = r.type === "end_turn" ? "done" : r.type; s.pending = []; }
+      break;
+    }
+    case "session.status_rescheduled": s.status = "running"; break;   // retrying: still busy
+    case "session.status_terminated": s.status = "terminated"; break;
+    case "session.error": {
+      const retry = ev.error && ev.error.retry_status && ev.error.retry_status.type;
+      const text = ((ev.error && ev.error.message) || "session error") + (retry === "retrying" ? " (retrying…)" : "");
+      s.items.push({ kind: retry === "retrying" ? "agent" : "err", text, t });
+      break;
+    }
+    case "session.usage":
+      if (ev.usage) { s.cost = ev.usage.list_cost; s.activeSec = ev.usage.active_seconds; }
+      break;
+    case "lab.error":
+      s.items.push({ kind: "err", text: ev.message, t }); s.status = "error"; break;
+    case "lab.replayed":
+      s.replayed = true; break;
+  }
+  return s;
+}
+
+// ── Rendering ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function describeInput(it) {
+  const i = it.input || {};
+  if (it.zone === "local") return "";
+  return i.command || i.file_path || i.path || i.pattern || JSON.stringify(i);
+}
+
+function renderItem(it, s) {
+  if (it.kind === "user") return `<div class="item user"><div class="head">you → agent<span class="t">${it.t}</span></div><div class="body">${esc(it.text)}</div></div>`;
+  if (it.kind === "agent") return `<div class="item agent"><div class="head">agent<span class="t">${it.t}</span></div><div class="body">${esc(it.text)}</div></div>`;
+  if (it.kind === "err") return `<div class="item err"><div class="head">error<span class="t">${it.t}</span></div><div class="body">${esc(it.text)}</div></div>`;
+  const stateChip = it.state === "running" ? `<span class="spin"></span>`
+    : it.state === "waiting" ? `<span class="chip wait">waiting on your app</span>`
+    : it.state === "error" ? `<span class="chip egress">exit ≠ 0</span>` : `<span class="chip ok">✓</span>`;
+  const egress = it.egress === "seen" ? `<span class="chip egress" title="the beacon host appears in this command or its output">⚠ beacon host: example.com</span>`
+    : it.egress === "blocked" ? `<span class="chip blocked">🛡 egress blocked</span>` : "";
+  const cmd = describeInput(it);
+  const out = it.output ? `<details class="out"><summary>output (${it.output.length} chars)</summary><pre>${esc(it.output.slice(0, 6000))}</pre></details>` : "";
+  return `<div class="item tool ${it.zone}"><div class="head"><span class="zone ${it.zone}">${it.zone} · ${esc(it.name)}</span>${stateChip}${egress}<span class="t">${it.t}</span></div>${cmd ? `<code class="cmd">${esc(cmd)}</code>` : ""}${out}</div>`;
+}
+
+function render(s) {
+  const tl = $("timeline");
+  let html = s.items.map(it => renderItem(it, s)).join("");
+  if (s.status === "stalled" && s.pending.length) {
+    const names = s.pending.map(id => (s.tools.get(id) || {}).name || id).join(", ");
+    html += `<div class="stall"><b>⏸ Session is idle: <code>requires_action</code></b><br>
+      The agent called <code>${esc(names)}</code>, a <i>custom</i> tool that runs in <b>your</b> process, and it is waiting for you to send the result back.<br>
+      Blocked on <code>agent.custom_tool_use</code> → expects <code>user.custom_tool_result</code> with that event's id.
+      ${s.pending.length} pending event id(s): <code>${esc(s.pending.join(", "))}</code></div>`;
+  } else if (s.thinking && s.status === "running") {
+    html += `<div class="thinking"><span class="spin"></span> model is thinking…</div>`;
+  }
+  tl.innerHTML = html || tl.innerHTML;
+  const st = $("state");
+  st.className = "pill " + ({ running: "running", stalled: "stalled", done: "done", error: "error", terminated: "error" }[s.status] || "");
+  st.textContent = s.status === "stalled" ? "idle · requires_action" : s.status === "done" ? "idle · end_turn" : s.status;
+  $("replayed").hidden = !s.replayed;
+  renderVerdict(s);
+}
+
+function renderVerdict(s) {
+  const v = s.verdict;
+  const box = $("verdict");
+  if (!v) return;
+  const score = Math.max(0, Math.min(10, v.risk_score ?? 0));
+  const ang = score / 10 * 180;
+  const col = v.verdict === "block" ? "var(--bad)" : v.verdict === "review" ? "var(--warn)" : "var(--ok)";
+  const rad = a => (Math.PI * (180 - a)) / 180;
+  const x = 50 + 40 * Math.cos(rad(ang)), y = 50 - 40 * Math.sin(rad(ang));
+  const dial = `<svg width="100" height="60" viewBox="0 0 100 60" aria-label="risk ${score} of 10">
+     <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="var(--line)" stroke-width="9" stroke-linecap="round"/>
+     <path d="M10 50 A40 40 0 ${ang > 180 ? 1 : 0} 1 ${x.toFixed(1)} ${y.toFixed(1)}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round"/>
+     <text x="50" y="48" text-anchor="middle" font-size="18" font-weight="800" fill="currentColor">${score}</text></svg>`;
+  const findings = (v.findings || []).map(f => `<div class="finding"><span class="sev ${esc(f.severity)}">${esc(f.severity)}</span><b>${esc(f.title)}</b>
+     <details><summary style="font-size:12px;color:var(--muted);cursor:pointer">evidence</summary><pre>${esc(f.evidence)}</pre></details></div>`).join("");
+  const sbom = (v.sbom || []).length ? `<h2 style="margin-top:14px">SBOM</h2><table class="sbom">${v.sbom.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.version)}</td><td>${esc(p.note || "")}</td></tr>`).join("")}</table>` : "";
+  const cost = s.cost ? `<div class="meter"><span>session list cost: <b>$${(Number(s.cost.amount) / 100).toFixed(2)}</b></span><span>active: ${Math.round(s.activeSec || 0)}s</span></div>` : "";
+  box.innerHTML = `<h2>Verdict (from your local <code>record_verdict</code>)</h2>
+    <div class="vhead"><span class="badge ${esc(v.verdict)}">${esc(v.verdict)}</span>
+    <div class="dial">${dial}<div class="n">risk / 10</div></div></div>
+    ${v.recorded ? "" : `<div class="footnote">⚠ Shown from the tool call's input — your app hasn't sent the result back yet.</div>`}
+    ${findings}${sbom}${cost}
+    <div class="footnote">Every finding cites a command that ran in the sandbox. The session's event log is the audit trail.</div>`;
+}
+
+// ── Wiring ───────────────────────────────────────────────────────────────────
+let S = freshState(), es = null;
+
+async function refreshStatus() {
+  const st = await (await fetch("/api/status")).json();
+  $("who").textContent = `handle: ${st.handle} · ${st.mode}${st.model ? " · " + st.model : ""}`;
+  $("stubs").innerHTML = st.stubs.map(x => `<li class="${x.done ? "done" : ""}"><span class="dot">${x.done ? "✓" : x.n}</span><div><div class="nm">${x.name}()</div><div class="lb">${x.label}</div></div></li>`).join("");
+  const ids = Object.entries(st.ids).filter(([, v]) => v);
+  $("ids").innerHTML = ids.map(([k, v]) => `${k}: ${v}`).join("<br>");
+  return st;
+}
+
+function follow(sid, replayed) {
+  if (es) es.close();
+  S = freshState();
+  if (replayed) S.replayed = true;
+  $("sid").textContent = sid;
+  $("timeline").innerHTML = "";
+  es = new EventSource(`/api/sessions/${sid}/events`);
+  es.onmessage = m => { apply(S, JSON.parse(m.data)); render(S); };
+  es.addEventListener("done", () => { es.close(); $("vet").disabled = false; refreshStatus(); });
+  es.onerror = () => { es.close(); $("vet").disabled = false; };
+}
+
+$("vet").onclick = async () => {
+  $("vet").disabled = true;
+  const r = await fetch("/api/vet", { method: "POST" });
+  const j = await r.json();
+  await refreshStatus();
+  if (!r.ok || !j.session_id) {
+    $("timeline").innerHTML = `<div class="item err"><div class="head">couldn't start</div><div class="body">${esc(j.error || "unknown error")}</div></div>`;
+    $("vet").disabled = false; return;
+  }
+  follow(j.session_id, false);
+};
+
+(async () => {
+  await refreshStatus();
+  const r = await (await fetch("/api/reattach", { method: "POST" })).json();
+  if (r.session_id) { $("vet").disabled = true; follow(r.session_id, !!r.reattached); }
+})();
+setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>

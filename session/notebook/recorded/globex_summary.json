@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/simonw/sqlite-utils",
+  "commits": 1500,
+  "authors": 55,
+  "first_commit": "2018-07-14T03:56:21+00:00",
+  "last_commit": "2026-10-11T00:15:54+00:00",
+  "busiest_weekday": "Sunday",
+  "bus_factor": 1,
+  "one_line_take": "Simon Willison wrote 91% of 1500 commits (bus factor 1); a long-lived, still-active single-maintainer project."
+}
