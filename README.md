@@ -4,7 +4,7 @@ A workshop that takes engineers who've used the Messages API to the point where 
 
 | Part | Format | Time | Where |
 |---|---|---|---|
-| **Session: concepts** | HTML deck (single file, works offline, speaker notes on `N`) | ~12 min | [`session/slides.html`](session/slides.html) |
+| **Session: concepts** | HTML deck (single file, works offline, speaker notes on `N`) | ~12 min | [`session/slides.html`](session/slides.html) ([view online](https://sbahamon.github.io/managed-agents-workshop/session/slides.html)) |
 | **Session: live demo** | Jupyter/Colab notebook, "Repo health report" product backend | ~8 min | [`session/notebook/repo_health.ipynb`](session/notebook/repo_health.ipynb) |
 | **Hands-on lab** | Python stubs + FastAPI + live event-timeline UI: vet an untrusted vendor package | 60 min | [`lab/README.md`](lab/README.md) |
 | **Design note** | Judgment calls: model proposed → shipped → why | 5 min read | [`DESIGN_NOTE.md`](DESIGN_NOTE.md) |
@@ -13,7 +13,7 @@ A workshop that takes engineers who've used the Messages API to the point where 
 ## Review it in 5 minutes
 
 1. **Read** [`DESIGN_NOTE.md`](DESIGN_NOTE.md), the table at the top.
-2. **Flip through** `session/slides.html` (open the file; arrow keys; press `N` for notes).
+2. **Flip through** `session/slides.html` ([view online](https://sbahamon.github.io/managed-agents-workshop/session/slides.html), or open the file; arrow keys; press `N` for notes).
 3. **Skim** the executed notebook. It's committed with outputs, so it renders on GitHub.
 4. **See the lab without an API key:**
    ```bash
